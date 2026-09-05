@@ -63,6 +63,7 @@ export type LegacyImportResult =
     }
   | { ok: false; error: string }
 
+/** Append already-decoded transcript messages as `legacy` journal items. */
 export async function appendLegacyTranscriptMessages(input: {
   journal: AgentSessionJournal
   agent: AgentType
@@ -87,6 +88,7 @@ export async function appendLegacyTranscriptMessages(input: {
   return appended
 }
 
+/** Rebuild a journal epoch from a bridge-era JSONL transcript for a native-chat agent. */
 export async function importLegacyTranscriptIntoJournal(input: {
   journal: AgentSessionJournal
   agent: AgentType

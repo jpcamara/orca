@@ -178,6 +178,11 @@ export function agentProviderSessionsEqual(
   )
 }
 
+/**
+ * Pull session identity (and optional transcript_path) from an agent hook payload.
+ * Native-chat agents (Claude, Codex, Cursor) also capture the file the agent is
+ * writing, since the on-disk name can differ from the hook session id.
+ */
 export function extractAgentProviderSession(
   source: AgentHookSource,
   payload: Record<string, unknown>

@@ -25,6 +25,7 @@ export type LegacyIdentityTracker = {
   identify(line: string, lineIndex: number): AgentJournalItemIdentity
 }
 
+/** Per-line identity anchors so a later structured resume can reconcile imported items. */
 export function createLegacyIdentityTracker(input: {
   transcriptAgent: NativeChatTranscriptAgent
   agent: AgentType

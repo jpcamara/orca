@@ -104,6 +104,7 @@ export type ResolveSessionFileOptions = {
  * (`~/.claude/projects/<slug>/<id>.jsonl`), so we glob the projects subdirs for
  * `<id>.jsonl`. Codex stores rollout files under date-nested dirs whose file name
  * embeds the session id, so we match by the session id appearing in the file name.
+ * Cursor stores JSONL under `~/.cursor/projects/<slug>/agent-transcripts/`.
  * Returns null when no matching transcript exists.
  */
 export async function resolveSessionFilePath(
@@ -182,6 +183,7 @@ export async function readClaudeTranscriptLeafUuid(
   ).leafUuid
 }
 
+/** Id-based fallback when the hook did not report a usable transcript_path. */
 async function resolveSessionFileById(
   transcriptAgent: NativeChatTranscriptAgent,
   sessionId: string,

@@ -3,11 +3,16 @@ import { basename, extname, join } from 'node:path'
 import { sessionIdFromFileName } from '../ai-vault/session-scanner-accumulator'
 import { walkSessionFiles } from '../ai-vault/session-scanner-discovery'
 
+/** Default Cursor projects root (`~/.cursor/projects`). */
 function cursorProjectsDir(): string {
   return join(homedir(), '.cursor', 'projects')
 }
 
-/** Cursor stores JSONL under `~/.cursor/projects/<slug>/agent-transcripts/`. */
+/**
+ * Resolve a Cursor JSONL transcript under `~/.cursor/projects/<slug>/agent-transcripts/`.
+ * Matches the hook session id as the file basename or as the UUID inside a nested
+ * `<uuid>/<uuid>.jsonl` path.
+ */
 export async function resolveCursorSessionFile(
   sessionId: string,
   projectsDir = cursorProjectsDir(),
@@ -21,6 +26,7 @@ export async function resolveCursorSessionFile(
   return files[0] ?? null
 }
 
+/** True when `filePath` is an agent-transcripts JSONL whose name matches `sessionId`. */
 function isCursorTranscriptForSession(filePath: string, sessionId: string): boolean {
   if (!filePath.split(/[/\\]/).includes('agent-transcripts')) {
     return false

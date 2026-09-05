@@ -42,6 +42,7 @@ const NATIVE_CHAT_AGENT_PROFILES: Partial<Record<AgentType, NativeChatAgentProfi
   }
 }
 
+/** Slash/skill surface for Native Chat, or null when the agent has no Chat profile. */
 export function getNativeChatAgentProfile(
   agent: AgentType | null | undefined
 ): NativeChatAgentProfile | null {

@@ -41,6 +41,7 @@ export function decodeCursorTranscriptLine(
   }
 }
 
+/** Drop Cursor's user-turn envelopes so Chat UI shows the typed prompt only. */
 function normalizeCursorUserBlock(block: NativeChatBlock): NativeChatBlock[] {
   if (block.type !== 'text') {
     return [block]
@@ -52,10 +53,12 @@ function normalizeCursorUserBlock(block: NativeChatBlock): NativeChatBlock[] {
   return stripped === block.text ? [block] : [{ type: 'text', text: stripped }]
 }
 
+/** Strip `<timestamp>` then unwrap `<user_query>` from a Cursor user-turn body. */
 function stripCursorUserEnvelope(text: string): string {
   return unwrapTaggedEnvelope(removeTaggedEnvelope(text, 'timestamp'), 'user_query')
 }
 
+/** Remove a `<tag>…</tag>` span entirely (used for Cursor's timestamp prefix). */
 function removeTaggedEnvelope(text: string, tag: string): string {
   const bounds = taggedEnvelopeBounds(text, tag)
   if (!bounds) {
@@ -64,6 +67,7 @@ function removeTaggedEnvelope(text: string, tag: string): string {
   return `${text.slice(0, bounds.start)}${text.slice(bounds.end)}`.trim()
 }
 
+/** Keep the inner text of `<tag>…</tag>` (used for Cursor's user_query wrapper). */
 function unwrapTaggedEnvelope(text: string, tag: string): string {
   const bounds = taggedEnvelopeBounds(text, tag)
   if (!bounds) {
@@ -72,6 +76,7 @@ function unwrapTaggedEnvelope(text: string, tag: string): string {
   return text.slice(bounds.innerStart, bounds.innerEnd).trim()
 }
 
+/** First `<tag>` / `</tag>` span in `text`, case-insensitive. Unclosed tags run to EOF. */
 function taggedEnvelopeBounds(
   text: string,
   tag: string
@@ -91,6 +96,7 @@ function taggedEnvelopeBounds(
   return { start, innerStart, innerEnd, end: innerEnd + closer.length }
 }
 
+/** JSONL `timestamp` to epoch ms, or null when missing/invalid. */
 function parseTimestamp(value: unknown): number | null {
   const parsed = timestampMs(value)
   return Number.isFinite(parsed) ? parsed : null

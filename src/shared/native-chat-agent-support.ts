@@ -17,6 +17,7 @@ export const NATIVE_CHAT_SUPPORTED_AGENTS: ReadonlySet<string> = new Set(
   NATIVE_CHAT_SUPPORTED_AGENT_LIST
 )
 
+/** True when Native Chat can parse this agent's transcript (Claude, Codex, Cursor, Grok, omp). */
 export function isNativeChatSupportedAgent(agent: string | null | undefined): boolean {
   return agent != null && NATIVE_CHAT_SUPPORTED_AGENTS.has(agent)
 }
@@ -40,6 +41,7 @@ export function shouldStepNativeChatAskAnswer(agent: string | null | undefined):
   return transcriptAgent === 'claude' || transcriptAgent === 'codex'
 }
 
+/** Map a TUI agent id onto the transcript format Native Chat actually parses. */
 export function resolveNativeChatTranscriptAgent(
   agent: string | null | undefined
 ): NativeChatTranscriptAgent | null {

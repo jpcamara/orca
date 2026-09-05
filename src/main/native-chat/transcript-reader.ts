@@ -62,6 +62,7 @@ export async function readNativeChatTranscript(
   }
 }
 
+/** Decode every JSONL record in `filePath` with the agent-specific line decoder. */
 async function readTranscript(
   filePath: string,
   decode: (line: string, fallbackId: string) => NativeChatMessage | null

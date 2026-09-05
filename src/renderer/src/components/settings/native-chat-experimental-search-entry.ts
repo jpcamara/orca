@@ -2,6 +2,7 @@ import { translate } from '@/i18n/i18n'
 import type { SettingsSearchEntry } from './settings-search'
 import { translateSearchKeyword } from './settings-search-keywords'
 
+/** Settings-search keywords for the experimental Chat UI toggle, including agent names. */
 export function getNativeChatExperimentalSearchEntry(): SettingsSearchEntry {
   return {
     title: translate('auto.components.settings.experimental.search.nativeChat.title', 'Chat UI'),
