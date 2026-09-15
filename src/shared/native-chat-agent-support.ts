@@ -1,6 +1,6 @@
 import type { TuiAgent } from './tui-agent'
 
-export type NativeChatTranscriptAgent = 'claude' | 'codex' | 'grok' | 'omp'
+export type NativeChatTranscriptAgent = 'claude' | 'codex' | 'cursor' | 'grok' | 'omp'
 
 /** Agents whose transcripts the native chat view can parse and render, in the
  *  order the settings pane advertises them. */
@@ -8,6 +8,7 @@ export const NATIVE_CHAT_SUPPORTED_AGENT_LIST: readonly TuiAgent[] = [
   'claude',
   'openclaude',
   'codex',
+  'cursor',
   'grok',
   'omp'
 ]
@@ -16,6 +17,7 @@ export const NATIVE_CHAT_SUPPORTED_AGENTS: ReadonlySet<string> = new Set(
   NATIVE_CHAT_SUPPORTED_AGENT_LIST
 )
 
+/** True when Native Chat can parse this agent's transcript (Claude, Codex, Cursor, Grok, omp). */
 export function isNativeChatSupportedAgent(agent: string | null | undefined): boolean {
   return agent != null && NATIVE_CHAT_SUPPORTED_AGENTS.has(agent)
 }
@@ -39,6 +41,7 @@ export function shouldStepNativeChatAskAnswer(agent: string | null | undefined):
   return transcriptAgent === 'claude' || transcriptAgent === 'codex'
 }
 
+/** Map a TUI agent id onto the transcript format Native Chat actually parses. */
 export function resolveNativeChatTranscriptAgent(
   agent: string | null | undefined
 ): NativeChatTranscriptAgent | null {
@@ -47,7 +50,7 @@ export function resolveNativeChatTranscriptAgent(
   if (agent === 'claude' || agent === 'openclaude') {
     return 'claude'
   }
-  if (agent === 'codex' || agent === 'grok' || agent === 'omp') {
+  if (agent === 'codex' || agent === 'cursor' || agent === 'grok' || agent === 'omp') {
     return agent
   }
   return null

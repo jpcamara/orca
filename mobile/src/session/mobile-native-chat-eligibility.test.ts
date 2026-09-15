@@ -84,6 +84,27 @@ describe('resolveMobileNativeChat', () => {
     expect(resolveMobileNativeChat({ type: 'terminal', launchAgent: 'gemini' })).toBeNull()
   })
 
+  it('admits Cursor terminal sessions', () => {
+    expect(
+      resolveMobileNativeChat({
+        type: 'terminal',
+        launchAgent: 'cursor',
+        agentStatus: status({
+          agentType: 'cursor',
+          providerSession: {
+            key: 'session_id',
+            id: 'cursor-session',
+            transcriptPath: '/tmp/cursor.jsonl'
+          }
+        })
+      })
+    ).toEqual({
+      agent: 'cursor',
+      sessionId: 'cursor-session',
+      transcriptPath: '/tmp/cursor.jsonl'
+    })
+  })
+
   it('admits Grok only when its transcript is readable by the serving host', () => {
     const tab = { type: 'terminal', launchAgent: 'grok' }
     expect(resolveMobileNativeChat(tab, isMobileNativeChatTranscriptReadable(null))).toMatchObject({
@@ -137,13 +158,27 @@ describe('resolveMobileNativeChat', () => {
     })
   })
 
-  it('rejects non-Codex structured agent-session tabs', () => {
+  it('resolves Claude structured agent-session tabs on the same journal path', () => {
     expect(
       resolveMobileNativeChat({
         type: 'agent-session',
         sessionId: 'structured-1',
         agent: 'claude'
-      } as never)
+      })
+    ).toEqual({
+      agent: 'claude',
+      sessionId: 'structured-1',
+      transcriptPath: null
+    })
+  })
+
+  it('rejects structured agent-session tabs whose provider the reducer cannot replay', () => {
+    expect(
+      resolveMobileNativeChat({
+        type: 'agent-session',
+        sessionId: 'structured-1',
+        agent: 'grok'
+      })
     ).toBeNull()
   })
 

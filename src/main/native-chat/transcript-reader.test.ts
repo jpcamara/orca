@@ -67,7 +67,7 @@ describe('readNativeChatTranscript (claude)', () => {
       timestamp: '2026-06-01T10:05:00.000Z',
       message: {
         role: 'assistant',
-        content: [{ type: 'tool_use', name: 'Bash', input: { command: 'ls' } }]
+        content: [{ type: 'tool_use', id: 'tool-call-1', name: 'Bash', input: { command: 'ls' } }]
       }
     })
     records.push({
@@ -98,7 +98,8 @@ describe('readNativeChatTranscript (claude)', () => {
     expect(toolCall?.blocks[0]).toEqual({
       type: 'tool-call',
       name: 'Bash',
-      input: { command: 'ls' }
+      input: { command: 'ls' },
+      callId: 'tool-call-1'
     })
 
     const toolResult = result.messages.at(-1)
@@ -297,6 +298,35 @@ describe('readNativeChatTranscript (errors)', () => {
     if ('error' in result) {
       expect(result.notFound).toBe(true)
     }
+  })
+})
+
+describe('readNativeChatTranscript (cursor)', () => {
+  it('decodes Cursor agent-transcripts rows and strips user envelopes', async () => {
+    const filePath = await writeFixture('orca-native-chat-cursor-', [
+      {
+        role: 'user',
+        message: {
+          content: [
+            {
+              type: 'text',
+              text: '<timestamp>Friday, Aug 28, 2026, 10:20 AM (UTC-4)</timestamp>\n<user_query>\nplease rebase\n</user_query>'
+            }
+          ]
+        }
+      },
+      {
+        role: 'assistant',
+        message: { content: [{ type: 'text', text: 'Rebasing onto master.' }] }
+      }
+    ])
+
+    await expect(readNativeChatTranscript('cursor', 'sess', { filePath })).resolves.toMatchObject({
+      messages: [
+        { role: 'user', blocks: [{ type: 'text', text: 'please rebase' }] },
+        { role: 'assistant', blocks: [{ type: 'text', text: 'Rebasing onto master.' }] }
+      ]
+    })
   })
 })
 

@@ -63,9 +63,6 @@ export type SleepingAgentSessionRecord = {
    *  so only the pane's own cold-restore path may consume them — activation
    *  launching a tab too would duplicate a warm-reattached session (#5232). */
   origin?: 'worktree-sleep' | 'quit' | 'live'
-  /** Prevents provider-session relaunch while main reconciles a durable
-   *  orchestration assignment against authoritative PTY inventory. */
-  automaticResumeBlockedBy?: 'legacy-orchestration-worker'
   /** Set on a finished pane captured by an explicit workspace sleep. Its
    *  `--resume` is issued by the pane's own cold restore when its tab is
    *  opened, so a mobile wake must not background-mount every such tab and
@@ -181,6 +178,11 @@ export function agentProviderSessionsEqual(
   )
 }
 
+/**
+ * Pull session identity (and optional transcript_path) from an agent hook payload.
+ * Native-chat agents (Claude, Codex, Cursor) also capture the file the agent is
+ * writing, since the on-disk name can differ from the hook session id.
+ */
 export function extractAgentProviderSession(
   source: AgentHookSource,
   payload: Record<string, unknown>
@@ -192,6 +194,13 @@ export function extractAgentProviderSession(
     case 'claude':
     case 'codex': {
       const id = readSessionId(payload, ['session_id'])
+      return id ? withTranscriptPath({ key: 'session_id', id }, payload) : null
+    }
+    // Why: Cursor hooks identify the chat as `conversation_id` (and sometimes
+    // `session_id`, which Cursor docs say is the same value) and may report the
+    // JSONL path as `transcript_path` — same native-chat locator as Claude/Codex.
+    case 'cursor': {
+      const id = readSessionId(payload, ['session_id', 'conversation_id', 'conversationId'])
       return id ? withTranscriptPath({ key: 'session_id', id }, payload) : null
     }
     case 'gemini':
@@ -239,7 +248,6 @@ export function extractAgentProviderSession(
       return id ? { key: 'session_id', id } : null
     }
     case 'amp':
-    case 'cursor':
     case 'command-code':
     case 'hermes':
       return null

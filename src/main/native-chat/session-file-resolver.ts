@@ -15,16 +15,14 @@ import {
   resolveGrokSessionsDir
 } from '../../shared/grok-session-paths'
 import {
-  createWslTranscriptResolutionSnapshot,
   needsWslHostResolution,
-  needsWslHostTranslation,
   toHostReadableTranscriptPath,
-  wslCodexSessionsDirs,
-  type WslTranscriptResolutionSnapshot
+  wslCodexSessionsDirs
 } from './host-readable-transcript-path'
 import { findWslCodexSessionPath } from './wsl-codex-session-path-scan'
 import { wslTranscriptFsRefusal, type WslTranscriptFsError } from './wsl-transcript-fs-gate'
 import { proveClaudeTranscriptBranch } from '../claude/claude-transcript-branch-proof'
+import { resolveCursorSessionFile } from './session-file-resolver-cursor'
 
 // Why: these mirror the path constants in ai-vault/session-scanner.ts. Reads
 // run in the main process against the runtime's own home directory; over SSH
@@ -87,13 +85,15 @@ export type ResolveSessionFileOptions = {
   grokSessionsDir?: string
   /** Override the omp sessions root (`~/.omp/agent/sessions`). */
   ompSessionsDir?: string
+  /** Override the Cursor projects root (`~/.cursor/projects`). */
+  cursorProjectsDir?: string
   /** Authoritative transcript path reported by the agent hook
    *  (`providerSession.transcriptPath`). When set and the file exists, it is used
    *  directly — recent Claude Code names the transcript with a UUID that differs
    *  from the hook session_id, so the id-based glob below would miss it. */
   transcriptPath?: string
-  /** Internal running-distro view shared across one resolve attempt. */
-  wslSnapshot?: WslTranscriptResolutionSnapshot
+  /** Attested WSL provider-session distro. Restricts exact-path resolution to that guest. */
+  wslDistro?: string
 }
 
 /**
@@ -104,6 +104,7 @@ export type ResolveSessionFileOptions = {
  * (`~/.claude/projects/<slug>/<id>.jsonl`), so we glob the projects subdirs for
  * `<id>.jsonl`. Codex stores rollout files under date-nested dirs whose file name
  * embeds the session id, so we match by the session id appearing in the file name.
+ * Cursor stores JSONL under `~/.cursor/projects/<slug>/agent-transcripts/`.
  * Returns null when no matching transcript exists.
  */
 export async function resolveSessionFilePath(
@@ -123,15 +124,12 @@ export async function resolveSessionFilePath(
   // stale/missing paths fall through to the id-based search.
   let unavailable: WslTranscriptFsError | undefined
   const hookPath = options.transcriptPath?.trim()
-  let wslSnapshot = options.wslSnapshot
   if (hookPath && extname(hookPath) === '.jsonl') {
     try {
-      if (!wslSnapshot && needsWslHostResolution(hookPath)) {
-        wslSnapshot = await createWslTranscriptResolutionSnapshot({
-          includeHomes: needsWslHostTranslation(hookPath)
-        })
-      }
-      const hostReadable = await toHostReadableTranscriptPath(hookPath, { signal, wslSnapshot })
+      const hostReadable = await toHostReadableTranscriptPath(hookPath, {
+        signal,
+        wslDistro: options.wslDistro
+      })
       if (hostReadable) {
         return hostReadable
       }
@@ -142,16 +140,28 @@ export async function resolveSessionFilePath(
       // it does not, so a stalled distro reads as unavailable, never "missing".
       unavailable = wslTranscriptFsRefusal(error)
     }
-    if (needsWslHostResolution(hookPath)) {
-      if (unavailable) {
-        throw unavailable
-      }
-      return null
-    }
   }
 
-  const resolveOptions = wslSnapshot === options.wslSnapshot ? options : { ...options, wslSnapshot }
-  const resolved = await resolveSessionFileById(transcriptAgent, sessionId, resolveOptions, signal)
+  // A guest/UNC hook path is authoritative even when the provider did not
+  // attest a distro. Never let its session id resolve to a host or other guest
+  // transcript after that exact path misses.
+  if (hookPath && needsWslHostResolution(hookPath)) {
+    if (unavailable) {
+      throw unavailable
+    }
+    return null
+  }
+
+  // A WSL worker may fall back to terminal evidence, but never to an id match on
+  // the host or another distro after its attested exact path misses.
+  if (options.wslDistro?.trim()) {
+    if (unavailable) {
+      throw unavailable
+    }
+    return null
+  }
+
+  const resolved = await resolveSessionFileById(transcriptAgent, sessionId, options, signal)
   if (!resolved && unavailable) {
     throw unavailable
   }
@@ -173,6 +183,7 @@ export async function readClaudeTranscriptLeafUuid(
   ).leafUuid
 }
 
+/** Id-based fallback when the hook did not report a usable transcript_path. */
 async function resolveSessionFileById(
   transcriptAgent: NativeChatTranscriptAgent,
   sessionId: string,
@@ -200,7 +211,7 @@ async function resolveSessionFileById(
       overrideDirs ?? codexSessionsDirs(),
       // Why: enumerating WSL homes spawns wsl.exe per distro, which boots ones the
       // user left stopped. Only pay that after this host's own Codex roots miss.
-      overrideDirs ? undefined : () => wslCodexSessionsDirs({ wslSnapshot: options.wslSnapshot }),
+      overrideDirs ? undefined : wslCodexSessionsDirs,
       signal
     )
   }
@@ -209,6 +220,9 @@ async function resolveSessionFileById(
   }
   if (transcriptAgent === 'omp') {
     return resolveOmpSessionFile(trimmedId, options.ompSessionsDir ?? ompSessionsDir(), signal)
+  }
+  if (transcriptAgent === 'cursor') {
+    return resolveCursorSessionFile(trimmedId, options.cursorProjectsDir, signal)
   }
   // Why: a new transcript agent must pick its own resolver. Falling through to
   // OMP's scan would search the wrong root with a foreign session id, so fail
